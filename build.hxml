@@ -1,0 +1,13 @@
+-cmd haxelib newrepo
+--next
+
+-lib pixijs
+-cp src
+-main Main
+-js js/main.js
+-D source-map-content
+
+
+
+
+
