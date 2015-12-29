@@ -5,6 +5,10 @@ function $extend(from, fields) {
 	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
 	return proto;
 }
+var Controller = function(view,model) {
+	this._view = view;
+	this._model = model;
+};
 var pixi_plugins_app_Application = function() {
 	this.pixelRatio = 1;
 	this.set_skipFrame(false);
@@ -109,26 +113,20 @@ var Main = function() {
 	this.onUpdate = $bind(this,this._onUpdate);
 	pixi_plugins_app_Application.prototype.start.call(this);
 	this.stage.interactive = true;
-	this._visual = new PIXI.Container();
-	this.stage.addChild(this._visual);
-	this.init();
+	this._view = new View(this.stage);
+	this._controller = new Controller(this._view,new Model());
 };
 Main.main = function() {
 	new Main();
 };
 Main.__super__ = pixi_plugins_app_Application;
 Main.prototype = $extend(pixi_plugins_app_Application.prototype,{
-	init: function() {
-		var _ = new PIXI.Graphics();
-		_.beginFill(13421772);
-		_.drawRect(0,0,100,100);
-		_.endFill();
-		_.cacheAsBitmap = true;
-		this._visual.addChild(_);
-	}
-	,_onUpdate: function(elapsedTime) {
+	_onUpdate: function(elapsedTime) {
+		if(this._view != null) this._view.onUpdate(elapsedTime);
 	}
 });
+var Model = function() {
+};
 var Perf = $hx_exports.Perf = function(pos) {
 	if(pos == null) pos = "TR";
 	this._perfObj = window.performance;
@@ -256,6 +254,30 @@ Perf.prototype = {
 		}
 	}
 };
+var View = function(stage) {
+	PIXI.Container.call(this);
+	stage.addChild(this);
+};
+View.__super__ = PIXI.Container;
+View.prototype = $extend(PIXI.Container.prototype,{
+	onUpdate: function(elapsedTime) {
+		console.log("mooo");
+		var test = new components_Orb();
+		test.position.x = elapsedTime / 100;
+		test.position.y = elapsedTime / 100;
+		this.addChild(test);
+	}
+});
+var components_Orb = function() {
+	PIXI.Container.call(this);
+	var _ = new PIXI.Graphics();
+	_.beginFill(13421772);
+	_.drawCircle(0,0,50);
+	this.addChild(_);
+};
+components_Orb.__super__ = PIXI.Container;
+components_Orb.prototype = $extend(PIXI.Container.prototype,{
+});
 var $_, $fid = 0;
 function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $fid++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }
 pixi_plugins_app_Application.AUTO = "auto";
