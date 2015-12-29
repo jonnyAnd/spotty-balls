@@ -14,7 +14,7 @@ class Main extends Application {
     public function new() {
         super();
 
-        backgroundColor = 0x000000;
+        backgroundColor = 0xFFFFFF;
         antialias = true;
         onUpdate = _onUpdate;
         super.start();
