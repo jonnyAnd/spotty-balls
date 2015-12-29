@@ -7,38 +7,28 @@ import pixi.plugins.app.Application;
 
 class Main extends Application {
 
-    var _visual:Container;
+    var _controller:Controller;
+    var _view:View;
 
 
     public function new() {
         super();
 
-        backgroundColor = 0x000000;
+        backgroundColor = 0xFFFFFF;
         antialias = true;
         onUpdate = _onUpdate;
         super.start();
         stage.interactive = true;
 
-        _visual = new Container();
-        stage.addChild(_visual);
-
-
-        init();
-    }
-
-    function init(){
-
-        var _:Graphics = new Graphics();
-        _.beginFill(0xCCCCCC);
-        _.drawRect(0,0,100,100);
-        _.endFill();
-        _.cacheAsBitmap = true;
-
-        _visual.addChild(_);
+        _view = new View(stage);
+        _controller = new Controller(_view, new Model());
     }
 
     function _onUpdate(elapsedTime:Float) {
 
+        if(_view != null){
+            _view.onUpdate(elapsedTime);
+        }
     }
 
     static function main() {
