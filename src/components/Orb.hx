@@ -1,4 +1,8 @@
 package components;
+import nape.geom.Vec2;
+import nape.space.Space;
+import nape.shape.Circle;
+import nape.phys.Body;
 import pixi.interaction.EventTarget;
 import haxe.Timer;
 import pixi.core.math.Point;
@@ -12,13 +16,18 @@ import pixi.core.display.Container;
 class Orb extends Container{
 
 	private var _spotify:SpotifyCommsController;
+
+	@:isVar public var pBall(get, null):Body;
+
+
 	public var artistId:String;
 
 	private var _base:Graphics;
 	private var _artistImage:Sprite;
 
 	public var onAnimationUpdate:Float->Void;
-	public var resquestAdditionalOrbs:Array<String>->Void;
+	public var resquestAdditionalOrbs:Dynamic;//Array<String> -> Body -> Void;
+
 
 	private var _originalPosition:Point;
 
@@ -29,9 +38,11 @@ class Orb extends Container{
 
 		setupGraphics();
 		setupComms();
+		setupInteractivity();
+		setupPhysics();
 
 
-		// aesthetic delays
+		//Todo:Remove this aesthetic delays
 		Timer.delay(function(){
 			startLoadingAnim();
 
@@ -41,11 +52,40 @@ class Orb extends Container{
 		Timer.delay(function(){
 			getArtistPictureUrl();
 		},500);
+	}
 
+	private function setupPhysics(){
+		pBall = new Body();
+		pBall.shapes.add(new Circle(GlobalSettings.ORB_RADIUS));
+		pBall.position.setxy(this.x, this.y);
+		pBall.angularVel = 5;
+		pBall.allowRotation = false;
+		pBall.mass = .1;
+	}
+
+	public function updatePosition(){
+		this.position.x = pBall.position.x;
+		this.position.y = pBall.position.y;
+
+		//trace("_pBall.position.y--->"+pBall.position.y);
+
+	}
+
+	public function forcePosition(pos:Point){
+		pBall.position.x = pos.x;
+		pBall.position.y = pos.y;
+	}
+
+
+
+	public function assignToPhysicsSpace(space:Space){
+		pBall.space = space;
+	}
+
+	private function setupInteractivity(){
 		this.interactive = true;
 		this.click = onOrbClick;
 		this.tap = onOrbClick;
-
 	}
 
 	private function setupGraphics(){
@@ -115,7 +155,7 @@ class Orb extends Container{
 
 	private function onRelatedArtistsResponse(artistIds:Array<String>){
 		stopLoadingAnim();
-		resquestAdditionalOrbs(artistIds);
+		resquestAdditionalOrbs(artistIds, this);
 	}
 
 
@@ -125,5 +165,9 @@ class Orb extends Container{
 		var low:Float = high*-1;
 		this.position.x += Math.floor(Math.random()*(1+high-low))+low;
 		this.position.y += Math.floor(Math.random()*(1+high-low))+low;
+	}
+
+	function get_pBall():Body {
+		return pBall;
 	}
 }
