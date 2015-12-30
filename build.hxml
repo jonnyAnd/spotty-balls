@@ -2,6 +2,7 @@
 --next
 
 -lib pixijs
+-lib nape
 -cp src
 -main Main
 -js js/main.js
