@@ -16,27 +16,23 @@ import comms.spotify.SpotifyCommsController;
 import pixi.core.graphics.Graphics;
 import pixi.core.display.Container;
 
-class Orb extends Container{
+class Orb extends Component{
 
 	private var _spotify:SpotifyCommsController;
-
-	@:isVar public var pBall(get, null):Body;
-
+	private var _pBall:Body;
 	private var _mySpace:Space;
-
-
 	public var artistId:String;
 	private var _base:Graphics;
 	private var _artistImage:Sprite;
-	public var onAnimationUpdate:Float->Void;
-	public var resquestAdditionalOrbs:Dynamic;//Array<String> -> Body -> Void;
 	private var _originalPosition:Point;
 	private var _myChildOrbs:Array<Orb>;
-
+	private var _myConnectionLines:Array<Graphics>;
 
 	public function new(artistId:String) {
 		super();
 		this.artistId = artistId;
+
+		updateFunction = update;
 
 		setupGraphics();
 		setupComms();
@@ -58,7 +54,7 @@ class Orb extends Container{
 
 	public function assignToPhysicsSpace(space:Space){
 		_mySpace = space;
-		pBall.space = space;
+		_pBall.space = space;
 	}
 
 	private function setupInteractivity(){
@@ -117,11 +113,11 @@ class Orb extends Container{
 
 	private function startLoadingAnim(){
 		_originalPosition = new Point(this.x, this.y);
-		onAnimationUpdate = loadingAnimation;
+		shortAnimationUpdate = loadingAnimation;
 	}
 
 	private function stopLoadingAnim(){
-		onAnimationUpdate = null;
+		shortAnimationUpdate = null;
 		this.x = _originalPosition.x;
 		this.y = _originalPosition.y;
 	}
@@ -134,13 +130,46 @@ class Orb extends Container{
 	private function onRelatedArtistsResponse(artistIds:Array<String>){
 		stopLoadingAnim();
 
-		_myChildOrbs = resquestAdditionalOrbs(artistIds, this);
+
+		addChildOrbs(artistIds);
 		addPhysicsConnectionToChildOrbs();
+	}
+
+
+	private function addChildOrbs(artistIds:Array<String>){
+
+		var duplicate = false;
+
+		if(_myChildOrbs == null){
+			_myChildOrbs = new Array<Orb>();
+		}
+
+		for(newArtistId in artistIds){
+			for(child in this.parent.children){
+				if (Std.is(child, Orb)){
+
+					var dynamicOrb:Dynamic = child;
+					if(dynamicOrb.artistId == newArtistId){
+						duplicate = true;
+					}
+				}
+			}
+
+			if(duplicate == false){
+				var newOrb:Orb = new Orb(newArtistId);
+				_myChildOrbs.push(newOrb);
+
+				newOrb.assignToPhysicsSpace(_mySpace);
+				this.parent.addChild(newOrb);
+
+				newOrb.forcePosition(new Point(this.position.x ,this.position.y));
+			}
+		}
 	}
 
 	private function addPhysicsConnectionToChildOrbs(){
 		for(orb in _myChildOrbs){
-			var pj:PivotJoint = new PivotJoint(pBall, orb.pBall, Vec2.weak(), Vec2.weak());
+			var pj:PivotJoint = new PivotJoint(_pBall, orb._pBall, Vec2.weak(), Vec2.weak());
 			pj.space = _mySpace;
 			pj.active = true;
 			pj.stiff = false;
@@ -151,37 +180,73 @@ class Orb extends Container{
 		}
 	}
 
-	public function drawConnection(connectionsContainer:Container){
+
+
+
+
+	private function clearOldConnection(){
+		if(_myConnectionLines != null){
+			for(line in _myConnectionLines){
+				this.parent.removeChild(_myConnectionLines.shift());
+			}
+		}
+	}
+
+	public function drawConnection(){
 		if(_myChildOrbs != null){
+
+			if(_myConnectionLines == null){
+				_myConnectionLines = new Array<Graphics>();
+			}
+
+
 			for(childOrb in _myChildOrbs){
 				var line:Graphics = new Graphics().lineStyle(1, 0xf3a33f);
 				line.moveTo(this.position.x, this.position.y);
 				line.lineTo(childOrb.position.x, childOrb.position.y);
-				connectionsContainer.addChild(line);
+				this.parent.addChild(line);
+				_myConnectionLines.push(line);
 			}
 		}
 	}
+
+	function update(elapsedTime:Float){
+
+		for (body in _mySpace.liveBodies) {
+			if(body != _pBall){
+				applyMyForceToBody(body, elapsedTime);
+			}
+		}
+
+
+		updatePosition();
+		clearOldConnection();
+		drawConnection();
+
+	}
+
+
 
 
 
 	//Physics functions
 	public function forcePosition(pos:Point){
-		pBall.position.x = pos.x;
-		pBall.position.y = pos.y;
+		_pBall.position.x = pos.x;
+		_pBall.position.y = pos.y;
 	}
 
 	private function setupPhysics(){
-		pBall = new Body();
-		pBall.shapes.add(new Circle(GlobalSettings.ORB_RADIUS));
-		pBall.position.setxy(this.x, this.y);
-		pBall.angularVel = 5;
-		pBall.allowRotation = false;
-		pBall.mass = .1;
+		_pBall = new Body();
+		_pBall.shapes.add(new Circle(GlobalSettings.ORB_RADIUS));
+		_pBall.position.setxy(this.x, this.y);
+		_pBall.angularVel = 5;
+		_pBall.allowRotation = false;
+		_pBall.mass = .1;
 	}
 
 	public function updatePosition(){
-		this.position.x = pBall.position.x;
-		this.position.y = pBall.position.y;
+		this.position.x = _pBall.position.x;
+		this.position.y = _pBall.position.y;
 	}
 
 	//Anim functions
@@ -194,11 +259,11 @@ class Orb extends Container{
 
 	public function applyMyForceToBody(body:Body, elapsedTime:Float){
 
-		if(body != pBall){ // Dont force yorself now!
+		if(body != _pBall){ // Dont force yorself now!
 
 			var closestA = Vec2.get();
 			var closestB = Vec2.get();
-			var distance = Geom.distanceBody(pBall, body, closestA, closestB);
+			var distance = Geom.distanceBody(_pBall, body, closestA, closestB);
 
 			if (distance < 100) {
 				var force = closestA.sub(body.position, true);
@@ -212,9 +277,5 @@ class Orb extends Container{
 			closestA.dispose();
 			closestB.dispose();
 		}
-	}
-
-	function get_pBall():Body {
-		return pBall;
 	}
 }

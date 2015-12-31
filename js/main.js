@@ -422,11 +422,10 @@ StringTools.fastCodeAt = function(s,index) {
 var View = function(stage) {
 	PIXI.Container.call(this);
 	stage.addChild(this);
-	this._connectionsContainer = new PIXI.Container();
-	this.addChild(this._connectionsContainer);
 	this.setupPhysics();
 	var startOrb = new components_Orb("25NCgMOtjNshJoOdoxYpea");
-	this.addOrb(startOrb);
+	startOrb.assignToPhysicsSpace(this._space);
+	this.addChild(startOrb);
 	startOrb.forcePosition(new PIXI.Point(500,300));
 };
 View.__name__ = true;
@@ -435,74 +434,9 @@ View.prototype = $extend(PIXI.Container.prototype,{
 	setupPhysics: function() {
 		this._space = new nape_space_Space();
 	}
-	,addOrb: function(orb) {
-		if(this._orbs == null) this._orbs = [];
-		orb.resquestAdditionalOrbs = $bind(this,this.resquestAdditionalOrbs);
-		orb.assignToPhysicsSpace(this._space);
-		this._orbs.push(orb);
-		this.addChild(orb);
-	}
-	,resquestAdditionalOrbs: function(artistIds,sourceOrb) {
-		var duplicate;
-		var newOrbs = [];
-		var _g = 0;
-		while(_g < artistIds.length) {
-			var artistId = artistIds[_g];
-			++_g;
-			duplicate = false;
-			var _g1 = 0;
-			var _g2 = this._orbs;
-			while(_g1 < _g2.length) {
-				var orb = _g2[_g1];
-				++_g1;
-				if(orb.artistId == artistId) duplicate = true;
-			}
-			if(duplicate == false) {
-				var newOrb = new components_Orb(artistId);
-				newOrbs.push(newOrb);
-				this.addOrb(newOrb);
-				newOrb.forcePosition(new PIXI.Point(sourceOrb.x,sourceOrb.y));
-			}
-		}
-		return newOrbs;
-	}
 	,onUpdate: function(elapsedTime) {
-		this.updateComponentAnimations(elapsedTime);
-		this.updateForceOnAllOrbs(elapsedTime);
-		this.drawConnections();
-	}
-	,updateForceOnAllOrbs: function(elapsedTime) {
 		this._space.step(0.0166666666666666664);
-		var _g = 0;
-		var _g1 = this._orbs;
-		while(_g < _g1.length) {
-			var orb = _g1[_g];
-			++_g;
-			var _g2 = this._space.zpp_inner.wrap_live.iterator();
-			while(_g2.hasNext()) {
-				var body;
-				_g2.zpp_critical = false;
-				body = _g2.zpp_inner.at(_g2.zpp_i++);
-				if(body != orb.get_pBall()) orb.applyMyForceToBody(body,elapsedTime);
-			}
-			orb.updatePosition();
-		}
-	}
-	,drawConnections: function() {
-		var _g = 0;
-		var _g1 = this._connectionsContainer.children;
-		while(_g < _g1.length) {
-			var child = _g1[_g];
-			++_g;
-			this._connectionsContainer.removeChild(child);
-		}
-		var _g2 = 0;
-		var _g11 = this._orbs;
-		while(_g2 < _g11.length) {
-			var orb = _g11[_g2];
-			++_g2;
-			orb.drawConnection(this._connectionsContainer);
-		}
+		this.updateComponentAnimations(elapsedTime);
 	}
 	,updateComponentAnimations: function(elapsedTime) {
 		var _g = 0;
@@ -511,7 +445,7 @@ View.prototype = $extend(PIXI.Container.prototype,{
 			var child = _g1[_g];
 			++_g;
 			var childObject = child;
-			if(childObject.onAnimationUpdate != null) childObject.onAnimationUpdate(elapsedTime);
+			if(childObject.updateComponent != null) childObject.updateComponent(elapsedTime);
 		}
 	}
 	,__class__: View
@@ -536,7 +470,7 @@ comms_spotify_SpotifyCommsController.prototype = {
 			var relatedArtists = [];
 			var dataObj = new haxe_format_JsonParser(data).parseRec();
 			var permittedRelatedArtists;
-			if(Std["int"](dataObj.artists.length) < 3) permittedRelatedArtists = Std["int"](dataObj.artists.length); else permittedRelatedArtists = 3;
+			if(Std["int"](dataObj.artists.length) < 5) permittedRelatedArtists = Std["int"](dataObj.artists.length); else permittedRelatedArtists = 5;
 			var _g = 0;
 			while(_g < permittedRelatedArtists) {
 				var i = _g++;
@@ -549,10 +483,27 @@ comms_spotify_SpotifyCommsController.prototype = {
 	}
 	,__class__: comms_spotify_SpotifyCommsController
 };
+var components_Component = function() {
+	PIXI.Container.call(this);
+	this.updateFunction = $bind(this,this.updateFunctionStub);
+};
+components_Component.__name__ = true;
+components_Component.__super__ = PIXI.Container;
+components_Component.prototype = $extend(PIXI.Container.prototype,{
+	updateComponent: function(elapsedTime) {
+		if(this.shortAnimationUpdate != null) this.shortAnimationUpdate(elapsedTime);
+		this.updateFunction(elapsedTime);
+	}
+	,updateFunctionStub: function(elapsedTime) {
+		console.log("please set updateFunction:Float->Void");
+	}
+	,__class__: components_Component
+});
 var components_Orb = function(artistId) {
 	var _g = this;
-	PIXI.Container.call(this);
+	components_Component.call(this);
 	this.artistId = artistId;
+	this.updateFunction = $bind(this,this.update);
 	this.setupGraphics();
 	this.setupComms();
 	this.setupInteractivity();
@@ -565,11 +516,11 @@ var components_Orb = function(artistId) {
 	},500);
 };
 components_Orb.__name__ = true;
-components_Orb.__super__ = PIXI.Container;
-components_Orb.prototype = $extend(PIXI.Container.prototype,{
+components_Orb.__super__ = components_Component;
+components_Orb.prototype = $extend(components_Component.prototype,{
 	assignToPhysicsSpace: function(space) {
 		this._mySpace = space;
-		this.get_pBall().set_space(space);
+		this._pBall.set_space(space);
 	}
 	,setupInteractivity: function() {
 		this.interactive = true;
@@ -616,10 +567,10 @@ components_Orb.prototype = $extend(PIXI.Container.prototype,{
 	}
 	,startLoadingAnim: function() {
 		this._originalPosition = new PIXI.Point(this.x,this.y);
-		this.onAnimationUpdate = $bind(this,this.loadingAnimation);
+		this.shortAnimationUpdate = $bind(this,this.loadingAnimation);
 	}
 	,stopLoadingAnim: function() {
-		this.onAnimationUpdate = null;
+		this.shortAnimationUpdate = null;
 		this.x = this._originalPosition.x;
 		this.y = this._originalPosition.y;
 	}
@@ -629,8 +580,34 @@ components_Orb.prototype = $extend(PIXI.Container.prototype,{
 	}
 	,onRelatedArtistsResponse: function(artistIds) {
 		this.stopLoadingAnim();
-		this._myChildOrbs = this.resquestAdditionalOrbs(artistIds,this);
+		this.addChildOrbs(artistIds);
 		this.addPhysicsConnectionToChildOrbs();
+	}
+	,addChildOrbs: function(artistIds) {
+		var duplicate = false;
+		if(this._myChildOrbs == null) this._myChildOrbs = [];
+		var _g = 0;
+		while(_g < artistIds.length) {
+			var newArtistId = artistIds[_g];
+			++_g;
+			var _g1 = 0;
+			var _g2 = this.parent.children;
+			while(_g1 < _g2.length) {
+				var child = _g2[_g1];
+				++_g1;
+				if(js_Boot.__instanceof(child,components_Orb)) {
+					var dynamicOrb = child;
+					if(dynamicOrb.artistId == newArtistId) duplicate = true;
+				}
+			}
+			if(duplicate == false) {
+				var newOrb = new components_Orb(newArtistId);
+				this._myChildOrbs.push(newOrb);
+				newOrb.assignToPhysicsSpace(this._mySpace);
+				this.parent.addChild(newOrb);
+				newOrb.forcePosition(new PIXI.Point(this.position.x,this.position.y));
+			}
+		}
 	}
 	,addPhysicsConnectionToChildOrbs: function() {
 		var _g = 0;
@@ -638,7 +615,7 @@ components_Orb.prototype = $extend(PIXI.Container.prototype,{
 		while(_g < _g1.length) {
 			var orb = _g1[_g];
 			++_g;
-			var pj = new nape_constraint_PivotJoint(this.get_pBall(),orb.get_pBall(),nape_geom_Vec2.get(0,0,true),nape_geom_Vec2.get(0,0,true));
+			var pj = new nape_constraint_PivotJoint(this._pBall,orb._pBall,nape_geom_Vec2.get(0,0,true),nape_geom_Vec2.get(0,0,true));
 			pj.set_space(this._mySpace);
 			if(pj.zpp_inner.active != true) {
 				if(pj.zpp_inner.component != null) pj.zpp_inner.component.woken = false;
@@ -678,8 +655,20 @@ components_Orb.prototype = $extend(PIXI.Container.prototype,{
 			pj.zpp_inner.frequency;
 		}
 	}
-	,drawConnection: function(connectionsContainer) {
+	,clearOldConnection: function() {
+		if(this._myConnectionLines != null) {
+			var _g = 0;
+			var _g1 = this._myConnectionLines;
+			while(_g < _g1.length) {
+				var line = _g1[_g];
+				++_g;
+				this.parent.removeChild(this._myConnectionLines.shift());
+			}
+		}
+	}
+	,drawConnection: function() {
 		if(this._myChildOrbs != null) {
+			if(this._myConnectionLines == null) this._myConnectionLines = [];
 			var _g = 0;
 			var _g1 = this._myChildOrbs;
 			while(_g < _g1.length) {
@@ -688,33 +677,50 @@ components_Orb.prototype = $extend(PIXI.Container.prototype,{
 				var line = new PIXI.Graphics().lineStyle(1,15967039);
 				line.moveTo(this.position.x,this.position.y);
 				line.lineTo(childOrb.position.x,childOrb.position.y);
-				connectionsContainer.addChild(line);
+				this.parent.addChild(line);
+				this._myConnectionLines.push(line);
 			}
 		}
 	}
+	,update: function(elapsedTime) {
+		var _g = this._mySpace.zpp_inner.wrap_live.iterator();
+		while(_g.hasNext()) {
+			var body;
+			_g.zpp_critical = false;
+			body = _g.zpp_inner.at(_g.zpp_i++);
+			if(body != this._pBall) this.applyMyForceToBody(body,elapsedTime);
+		}
+		this.updatePosition();
+		this.clearOldConnection();
+		this.drawConnection();
+	}
 	,forcePosition: function(pos) {
-		this.get_pBall().get_position().set_x(pos.x);
-		this.get_pBall().get_position().set_y(pos.y);
+		this._pBall.get_position().set_x(pos.x);
+		this._pBall.get_position().set_y(pos.y);
 	}
 	,setupPhysics: function() {
-		this.pBall = new nape_phys_Body();
-		this.get_pBall().get_shapes().add(new nape_shape_Circle(20));
-		this.get_pBall().get_position().setxy(this.x,this.y);
-		this.get_pBall().set_angularVel(5);
-		this.get_pBall().set_allowRotation(false);
-		this.get_pBall().set_mass(.1);
+		this._pBall = new nape_phys_Body();
+		this._pBall.zpp_inner.wrap_shapes.add(new nape_shape_Circle(20));
+		this._pBall.get_position().setxy(this.x,this.y);
+		this._pBall.set_angularVel(5);
+		this._pBall.set_allowRotation(false);
+		this._pBall.set_mass(.1);
 	}
 	,updatePosition: function() {
-		this.position.x = this.get_pBall().get_position().get_x();
-		this.position.y = this.get_pBall().get_position().get_y();
+		this.position.x = this._pBall.get_position().get_x();
+		this.position.y = this._pBall.get_position().get_y();
 	}
 	,loadingAnimation: function(time) {
+		var high = .5;
+		var low = high * -1;
+		this.position.x += Math.floor(Math.random() * (1 + high - low)) + low;
+		this.position.y += Math.floor(Math.random() * (1 + high - low)) + low;
 	}
 	,applyMyForceToBody: function(body,elapsedTime) {
-		if(body != this.get_pBall()) {
+		if(body != this._pBall) {
 			var closestA = nape_geom_Vec2.get(null,null,null);
 			var closestB = nape_geom_Vec2.get(null,null,null);
-			var distance = nape_geom_Geom.distanceBody(this.get_pBall(),body,closestA,closestB);
+			var distance = nape_geom_Geom.distanceBody(this._pBall,body,closestA,closestB);
 			if(distance < 100) {
 				var force = closestA.sub((function($this) {
 					var $r;
@@ -737,9 +743,6 @@ components_Orb.prototype = $extend(PIXI.Container.prototype,{
 			closestA.dispose();
 			closestB.dispose();
 		}
-	}
-	,get_pBall: function() {
-		return this.pBall;
 	}
 	,__class__: components_Orb
 });
@@ -57195,7 +57198,7 @@ nape_constraint_Constraint.zpp_internalAlloc = false;
 nape_phys_Interactor.zpp_internalAlloc = false;
 nape_shape_Shape.zpp_internalAlloc = false;
 settings_GlobalSettings.ORB_RADIUS = 20;
-settings_GlobalSettings.MAX_RELATED = 3;
+settings_GlobalSettings.MAX_RELATED = 5;
 zpp_$nape_ZPP_$Const.FMAX = 1e100;
 zpp_$nape_ZPP_$ID._Constraint = 0;
 zpp_$nape_ZPP_$ID._Interactor = 0;
