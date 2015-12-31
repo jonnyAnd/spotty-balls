@@ -63,7 +63,7 @@ class View extends Container {
 		//physics
 		orb.assignToPhysicsSpace(_space);
 
-
+		// register orb
 		_orbs.push(orb);
 		this.addChild(orb);
 	}
@@ -99,95 +99,33 @@ class View extends Container {
 		var pj:PivotJoint = new PivotJoint(coreOrb.pBall, newOrb.pBall, Vec2.weak(), Vec2.weak());
 		pj.space = _space;
 		pj.active = true;
-
 		pj.stiff = false;
-
 		pj.damping = 5;
-
 		pj.breakUnderError = false;
-
 		pj.breakUnderForce = false;
-
-
 		pj.frequency = 3;
-
-
-
-		//trace("DAMP "+pj.damping);
-
-
 	}
 
 	public function onUpdate(elapsedTime:Float){
 		updateComponentAnimations(elapsedTime);
+		updateForceOnAllOrbs(elapsedTime);
+		drawConnections();
+	}
 
-		//orb physics
+	private function updateForceOnAllOrbs(elapsedTime:Float){
 		_space.step(1 / 60);
 
 		for (orb in _orbs){
-
-			var closestA = Vec2.get();
-			var closestB = Vec2.get();
-
 			for (body in _space.liveBodies) {
-
-				// to stop it looking at its self
 				if(body != orb.pBall){
-
-					_samplePoint.position.set(body.position);
-
-
-					var distance = Geom.distanceBody(orb.pBall, _samplePoint, closestA, closestB);
-
-					if (distance < 100) {
-
-
-						var force = closestA.sub(body.position, true);
-
-
-
-
-						force.length = (body.mass * 1e6 / (distance*distance));
-
-
-
-
-
-						force.muleq(-1);// make them replse rather than attract
-
-
-
-						body.applyImpulse(
-							force.muleq(elapsedTime/10000),//todo: examine this /10000
-							null, true
-												);
-
-					}
+					orb.applyMyForceToBody(body, elapsedTime);
 				}
 			}
-
-
-			closestA.dispose();
-			closestB.dispose();
-
-
-			//orb.updateForces();
 			orb.updatePosition();
-
 		}
-
-
-
-		drawConnections();
-
 	}
 
 	private function drawConnections(){
-		//deleteAll connections
-
-	//	trace("_connectionsContainer.children--->"+_connectionsContainer.children.length);
-
-
 		for(child in _connectionsContainer.children){
 			_connectionsContainer.removeChild(child);
 		}

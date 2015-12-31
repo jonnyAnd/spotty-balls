@@ -382,6 +382,9 @@ Std.__name__ = true;
 Std.string = function(s) {
 	return js_Boot.__string_rec(s,"");
 };
+Std["int"] = function(x) {
+	return x | 0;
+};
 Std.parseInt = function(x) {
 	var v = parseInt(x,10);
 	if(v == 0 && (HxOverrides.cca(x,1) == 120 || HxOverrides.cca(x,1) == 88)) v = parseInt(x);
@@ -515,43 +518,13 @@ View.prototype = $extend(PIXI.Container.prototype,{
 		while(_g < _g1.length) {
 			var orb = _g1[_g];
 			++_g;
-			var closestA = nape_geom_Vec2.get(null,null,null);
-			var closestB = nape_geom_Vec2.get(null,null,null);
 			var _g2 = this._space.zpp_inner.wrap_live.iterator();
 			while(_g2.hasNext()) {
 				var body;
 				_g2.zpp_critical = false;
 				body = _g2.zpp_inner.at(_g2.zpp_i++);
-				if(body != orb.get_pBall()) {
-					this._samplePoint.get_position().set((function($this) {
-						var $r;
-						if(body.zpp_inner.wrap_pos == null) body.zpp_inner.setupPosition();
-						$r = body.zpp_inner.wrap_pos;
-						return $r;
-					}(this)));
-					var distance = nape_geom_Geom.distanceBody(orb.get_pBall(),this._samplePoint,closestA,closestB);
-					if(distance < 100) {
-						var force = closestA.sub((function($this) {
-							var $r;
-							if(body.zpp_inner.wrap_pos == null) body.zpp_inner.setupPosition();
-							$r = body.zpp_inner.wrap_pos;
-							return $r;
-						}(this)),true);
-						force.set_length((function($this) {
-							var $r;
-							if(body.zpp_inner.world) throw new js__$Boot_HaxeError("Error: Space::world has no mass");
-							body.zpp_inner.validate_mass();
-							if(body.zpp_inner.massMode == zpp_$nape_util_ZPP_$Flags.id_MassMode_DEFAULT && body.zpp_inner.shapes.head == null) throw new js__$Boot_HaxeError("Error: Given current mass mode, Body::mass only makes sense if it contains shapes");
-							$r = body.zpp_inner.cmass;
-							return $r;
-						}(this)) * 1e6 / (distance * distance));
-						force.muleq(-1);
-						body.applyImpulse(force.muleq(elapsedTime / 10000),null,true);
-					}
-				}
+				if(body != orb.get_pBall()) orb.applyMyForceToBody(body,elapsedTime);
 			}
-			closestA.dispose();
-			closestB.dispose();
 			orb.updatePosition();
 		}
 		this.drawConnections();
@@ -606,10 +579,11 @@ comms_spotify_SpotifyCommsController.prototype = {
 		_.onData = function(data) {
 			var relatedArtists = [];
 			var dataObj = new haxe_format_JsonParser(data).parseRec();
-			var _g1 = 0;
-			var _g = dataObj.artists.length - 1 | 0;
-			while(_g1 < _g) {
-				var i = _g1++;
+			var permittedRelatedArtists;
+			if(Std["int"](dataObj.artists.length) < 3) permittedRelatedArtists = Std["int"](dataObj.artists.length); else permittedRelatedArtists = 3;
+			var _g = 0;
+			while(_g < permittedRelatedArtists) {
+				var i = _g++;
 				var artist = dataObj.artists[i];
 				relatedArtists.push(artist.id);
 			}
@@ -637,23 +611,7 @@ var components_Orb = function(artistId) {
 components_Orb.__name__ = true;
 components_Orb.__super__ = PIXI.Container;
 components_Orb.prototype = $extend(PIXI.Container.prototype,{
-	setupPhysics: function() {
-		this.pBall = new nape_phys_Body();
-		this.get_pBall().get_shapes().add(new nape_shape_Circle(20));
-		this.get_pBall().get_position().setxy(this.x,this.y);
-		this.get_pBall().set_angularVel(5);
-		this.get_pBall().set_allowRotation(false);
-		this.get_pBall().set_mass(.1);
-	}
-	,updatePosition: function() {
-		this.position.x = this.get_pBall().get_position().get_x();
-		this.position.y = this.get_pBall().get_position().get_y();
-	}
-	,forcePosition: function(pos) {
-		this.get_pBall().get_position().set_x(pos.x);
-		this.get_pBall().get_position().set_y(pos.y);
-	}
-	,assignToPhysicsSpace: function(space) {
+	assignToPhysicsSpace: function(space) {
 		this.get_pBall().set_space(space);
 	}
 	,setupInteractivity: function() {
@@ -716,11 +674,53 @@ components_Orb.prototype = $extend(PIXI.Container.prototype,{
 		this.stopLoadingAnim();
 		this.resquestAdditionalOrbs(artistIds,this);
 	}
+	,forcePosition: function(pos) {
+		this.get_pBall().get_position().set_x(pos.x);
+		this.get_pBall().get_position().set_y(pos.y);
+	}
+	,setupPhysics: function() {
+		this.pBall = new nape_phys_Body();
+		this.get_pBall().get_shapes().add(new nape_shape_Circle(20));
+		this.get_pBall().get_position().setxy(this.x,this.y);
+		this.get_pBall().set_angularVel(5);
+		this.get_pBall().set_allowRotation(false);
+		this.get_pBall().set_mass(.1);
+	}
+	,updatePosition: function() {
+		this.position.x = this.get_pBall().get_position().get_x();
+		this.position.y = this.get_pBall().get_position().get_y();
+	}
 	,loadingAnimation: function(time) {
 		var high = .5;
 		var low = high * -1;
 		this.position.x += Math.floor(Math.random() * (1 + high - low)) + low;
 		this.position.y += Math.floor(Math.random() * (1 + high - low)) + low;
+	}
+	,applyMyForceToBody: function(body,elapsedTime) {
+		var closestA = nape_geom_Vec2.get(null,null,null);
+		var closestB = nape_geom_Vec2.get(null,null,null);
+		var distance = nape_geom_Geom.distanceBody(this.get_pBall(),body,closestA,closestB);
+		if(distance < 100) {
+			var force = closestA.sub((function($this) {
+				var $r;
+				if(body.zpp_inner.wrap_pos == null) body.zpp_inner.setupPosition();
+				$r = body.zpp_inner.wrap_pos;
+				return $r;
+			}(this)),true);
+			force.set_length((function($this) {
+				var $r;
+				if(body.zpp_inner.world) throw new js__$Boot_HaxeError("Error: Space::world has no mass");
+				body.zpp_inner.validate_mass();
+				if(body.zpp_inner.massMode == zpp_$nape_util_ZPP_$Flags.id_MassMode_DEFAULT && body.zpp_inner.shapes.head == null) throw new js__$Boot_HaxeError("Error: Given current mass mode, Body::mass only makes sense if it contains shapes");
+				$r = body.zpp_inner.cmass;
+				return $r;
+			}(this)) * 1e6 / (distance * distance));
+			force.muleq(-1);
+			force.muleq(elapsedTime / 10000);
+			body.applyImpulse(force,null,true);
+		}
+		closestA.dispose();
+		closestB.dispose();
 	}
 	,get_pBall: function() {
 		return this.pBall;
@@ -57179,6 +57179,7 @@ nape_constraint_Constraint.zpp_internalAlloc = false;
 nape_phys_Interactor.zpp_internalAlloc = false;
 nape_shape_Shape.zpp_internalAlloc = false;
 settings_GlobalSettings.ORB_RADIUS = 20;
+settings_GlobalSettings.MAX_RELATED = 3;
 zpp_$nape_ZPP_$Const.FMAX = 1e100;
 zpp_$nape_ZPP_$ID._Constraint = 0;
 zpp_$nape_ZPP_$ID._Interactor = 0;

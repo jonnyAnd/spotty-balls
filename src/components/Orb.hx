@@ -1,4 +1,6 @@
 package components;
+import nape.geom.Geom;
+import nape.geom.Geom;
 import nape.geom.Vec2;
 import nape.space.Space;
 import nape.shape.Circle;
@@ -27,8 +29,6 @@ class Orb extends Container{
 
 	public var onAnimationUpdate:Float->Void;
 	public var resquestAdditionalOrbs:Dynamic;//Array<String> -> Body -> Void;
-
-
 	private var _originalPosition:Point;
 
 
@@ -53,30 +53,6 @@ class Orb extends Container{
 			getArtistPictureUrl();
 		},500);
 	}
-
-	private function setupPhysics(){
-		pBall = new Body();
-		pBall.shapes.add(new Circle(GlobalSettings.ORB_RADIUS));
-		pBall.position.setxy(this.x, this.y);
-		pBall.angularVel = 5;
-		pBall.allowRotation = false;
-		pBall.mass = .1;
-	}
-
-	public function updatePosition(){
-		this.position.x = pBall.position.x;
-		this.position.y = pBall.position.y;
-
-		//trace("_pBall.position.y--->"+pBall.position.y);
-
-	}
-
-	public function forcePosition(pos:Point){
-		pBall.position.x = pos.x;
-		pBall.position.y = pos.y;
-	}
-
-
 
 	public function assignToPhysicsSpace(space:Space){
 		pBall.space = space;
@@ -159,12 +135,55 @@ class Orb extends Container{
 	}
 
 
+	//Physics functions
+	public function forcePosition(pos:Point){
+		pBall.position.x = pos.x;
+		pBall.position.y = pos.y;
+	}
+
+	private function setupPhysics(){
+		pBall = new Body();
+		pBall.shapes.add(new Circle(GlobalSettings.ORB_RADIUS));
+		pBall.position.setxy(this.x, this.y);
+		pBall.angularVel = 5;
+		pBall.allowRotation = false;
+		pBall.mass = .1;
+	}
+
+	public function updatePosition(){
+		this.position.x = pBall.position.x;
+		this.position.y = pBall.position.y;
+	}
+
+
 	//Anim functions
 	private function loadingAnimation(time:Float){
 		var high:Float = .5;
 		var low:Float = high*-1;
 		this.position.x += Math.floor(Math.random()*(1+high-low))+low;
 		this.position.y += Math.floor(Math.random()*(1+high-low))+low;
+	}
+
+	public function applyMyForceToBody(body:Body, elapsedTime:Float){
+
+		if(body != pBall){ // Dont force yorself now!
+
+			var closestA = Vec2.get();
+			var closestB = Vec2.get();
+			var distance = Geom.distanceBody(pBall, body, closestA, closestB);
+
+			if (distance < 100) {
+				var force = closestA.sub(body.position, true);
+				force.length = (body.mass * 1e6 / (distance*distance));
+				force.muleq(-1);// make them replse rather than attract
+				force.muleq(elapsedTime/10000);//todo: examine this /10000
+
+				body.applyImpulse(force,null,true);
+			}
+
+			closestA.dispose();
+			closestB.dispose();
+		}
 	}
 
 	function get_pBall():Body {

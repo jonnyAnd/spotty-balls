@@ -1,4 +1,5 @@
 package comms.spotify;
+import settings.GlobalSettings;
 import Std;
 import haxe.format.JsonParser;
 import haxe.Http;
@@ -29,8 +30,16 @@ class SpotifyCommsController {
 
 			var relatedArtists:Array<String> = new Array<String>();
 			var dataObj:Dynamic = JsonParser.parse(data);
+			var permittedRelatedArtists:Int;
 
-			for (i in 0...Std.int(dataObj.artists.length-1)){
+			if(Std.int(dataObj.artists.length) < GlobalSettings.MAX_RELATED){
+				permittedRelatedArtists = Std.int(dataObj.artists.length);
+			}else{
+				permittedRelatedArtists = GlobalSettings.MAX_RELATED;
+			}
+
+
+			for (i in 0...permittedRelatedArtists){
 				var artist:Dynamic = dataObj.artists[i];
 				relatedArtists.push(artist.id);
 			}
