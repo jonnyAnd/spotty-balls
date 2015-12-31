@@ -1,4 +1,5 @@
 package components;
+import nape.constraint.PivotJoint;
 import nape.geom.Geom;
 import nape.geom.Geom;
 import nape.geom.Vec2;
@@ -21,15 +22,16 @@ class Orb extends Container{
 
 	@:isVar public var pBall(get, null):Body;
 
+	private var _mySpace:Space;
+
 
 	public var artistId:String;
-
 	private var _base:Graphics;
 	private var _artistImage:Sprite;
-
 	public var onAnimationUpdate:Float->Void;
 	public var resquestAdditionalOrbs:Dynamic;//Array<String> -> Body -> Void;
 	private var _originalPosition:Point;
+	private var _myChildOrbs:Array<Orb>;
 
 
 	public function new(artistId:String) {
@@ -55,6 +57,7 @@ class Orb extends Container{
 	}
 
 	public function assignToPhysicsSpace(space:Space){
+		_mySpace = space;
 		pBall.space = space;
 	}
 
@@ -94,7 +97,6 @@ class Orb extends Container{
 
 	private function setImageToSprite(url:String){
 		_artistImage.texture = Texture.fromImage(url);
-
 		_artistImage.texture.baseTexture.on('loaded', function(){
 			scaleSprite(_artistImage, GlobalSettings.ORB_RADIUS*2);
 
@@ -131,8 +133,35 @@ class Orb extends Container{
 
 	private function onRelatedArtistsResponse(artistIds:Array<String>){
 		stopLoadingAnim();
-		resquestAdditionalOrbs(artistIds, this);
+
+		_myChildOrbs = resquestAdditionalOrbs(artistIds, this);
+		addPhysicsConnectionToChildOrbs();
 	}
+
+	private function addPhysicsConnectionToChildOrbs(){
+		for(orb in _myChildOrbs){
+			var pj:PivotJoint = new PivotJoint(pBall, orb.pBall, Vec2.weak(), Vec2.weak());
+			pj.space = _mySpace;
+			pj.active = true;
+			pj.stiff = false;
+			pj.damping = 5;
+			pj.breakUnderError = false;
+			pj.breakUnderForce = false;
+			pj.frequency = 3;
+		}
+	}
+
+	public function drawConnection(connectionsContainer:Container){
+		if(_myChildOrbs != null){
+			for(childOrb in _myChildOrbs){
+				var line:Graphics = new Graphics().lineStyle(1, 0xf3a33f);
+				line.moveTo(this.position.x, this.position.y);
+				line.lineTo(childOrb.position.x, childOrb.position.y);
+				connectionsContainer.addChild(line);
+			}
+		}
+	}
+
 
 
 	//Physics functions
@@ -154,7 +183,6 @@ class Orb extends Container{
 		this.position.x = pBall.position.x;
 		this.position.y = pBall.position.y;
 	}
-
 
 	//Anim functions
 	private function loadingAnimation(time:Float){

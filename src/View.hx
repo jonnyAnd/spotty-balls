@@ -20,9 +20,6 @@ class View extends Container {
 
 	private var _orbs:Array<Orb>;
 	private var _space:Space;
-	private var _samplePoint:Body;
-	private var _connections:Array<Array<Orb>>;
-
 	private var _connectionsContainer:Container;
 
 
@@ -31,7 +28,6 @@ class View extends Container {
 		stage.addChild(this);
 
 		// add connections container
-		_connections = new Array<Array<Orb>>();
 		_connectionsContainer = new Container();
 		this.addChild(_connectionsContainer);
 
@@ -41,14 +37,10 @@ class View extends Container {
 		var startOrb:Orb = new Orb("25NCgMOtjNshJoOdoxYpea");
 		addOrb(startOrb);
 		startOrb.forcePosition(new Point(500 ,300));
-
 	}
 
 	private function setupPhysics(){
 		_space = new Space();
-
-		_samplePoint = new Body();
-		_samplePoint.shapes.add(new Circle(0.001));
 	}
 
 	private function addOrb(orb:Orb){
@@ -68,12 +60,16 @@ class View extends Container {
 		this.addChild(orb);
 	}
 
-	private function resquestAdditionalOrbs(artistIds:Array<String>, sourceOrb:Orb){
+	private function resquestAdditionalOrbs(artistIds:Array<String>, sourceOrb:Orb):Array<Orb>{
 		var duplicate:Bool;
+
+		var newOrbs:Array<Orb> = new Array<Orb>();
+
+
 		for(artistId in artistIds){
 			duplicate = false;
 
-			for(orb in _orbs){
+			for(orb in _orbs){//todo:this should be a for each children, so we can not stor this array any more
 				if(orb.artistId == artistId){
 					duplicate = true;
 				}
@@ -81,29 +77,15 @@ class View extends Container {
 
 			if(duplicate == false){
 				var newOrb:Orb = new Orb(artistId);
-
-				addPhysicsConnection(sourceOrb, newOrb);
+				newOrbs.push(newOrb);
 				addOrb(newOrb);
 				newOrb.forcePosition(new Point(sourceOrb.x ,sourceOrb.y));
-
-				var pair:Array<Orb> = [sourceOrb,newOrb];
-				_connections.push(pair);
-
-				trace("_connections-->"+_connections.length);
 			}
 		}
-	}
 
-	private function addPhysicsConnection(coreOrb:Orb, newOrb:Orb){
 
-		var pj:PivotJoint = new PivotJoint(coreOrb.pBall, newOrb.pBall, Vec2.weak(), Vec2.weak());
-		pj.space = _space;
-		pj.active = true;
-		pj.stiff = false;
-		pj.damping = 5;
-		pj.breakUnderError = false;
-		pj.breakUnderForce = false;
-		pj.frequency = 3;
+		return newOrbs;
+
 	}
 
 	public function onUpdate(elapsedTime:Float){
@@ -126,17 +108,13 @@ class View extends Container {
 	}
 
 	private function drawConnections(){
+
 		for(child in _connectionsContainer.children){
 			_connectionsContainer.removeChild(child);
 		}
 
-		//redraw
-		for(pairs in _connections){
-
-			var line:Graphics = new Graphics().lineStyle(1, 0xf3a33f);
-			line.moveTo(pairs[0].position.x, pairs[0].position.y);
-			line.lineTo(pairs[1].position.x, pairs[1].position.y);
-			_connectionsContainer.addChild(line);
+		for(orb in _orbs){
+			orb.drawConnection(_connectionsContainer);
 		}
 	}
 

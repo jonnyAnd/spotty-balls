@@ -422,7 +422,6 @@ StringTools.fastCodeAt = function(s,index) {
 var View = function(stage) {
 	PIXI.Container.call(this);
 	stage.addChild(this);
-	this._connections = [];
 	this._connectionsContainer = new PIXI.Container();
 	this.addChild(this._connectionsContainer);
 	this.setupPhysics();
@@ -435,8 +434,6 @@ View.__super__ = PIXI.Container;
 View.prototype = $extend(PIXI.Container.prototype,{
 	setupPhysics: function() {
 		this._space = new nape_space_Space();
-		this._samplePoint = new nape_phys_Body();
-		this._samplePoint.zpp_inner.wrap_shapes.add(new nape_shape_Circle(0.001));
 	}
 	,addOrb: function(orb) {
 		if(this._orbs == null) this._orbs = [];
@@ -447,6 +444,7 @@ View.prototype = $extend(PIXI.Container.prototype,{
 	}
 	,resquestAdditionalOrbs: function(artistIds,sourceOrb) {
 		var duplicate;
+		var newOrbs = [];
 		var _g = 0;
 		while(_g < artistIds.length) {
 			var artistId = artistIds[_g];
@@ -461,57 +459,19 @@ View.prototype = $extend(PIXI.Container.prototype,{
 			}
 			if(duplicate == false) {
 				var newOrb = new components_Orb(artistId);
-				this.addPhysicsConnection(sourceOrb,newOrb);
+				newOrbs.push(newOrb);
 				this.addOrb(newOrb);
 				newOrb.forcePosition(new PIXI.Point(sourceOrb.x,sourceOrb.y));
-				var pair = [sourceOrb,newOrb];
-				this._connections.push(pair);
-				console.log("_connections-->" + this._connections.length);
 			}
 		}
-	}
-	,addPhysicsConnection: function(coreOrb,newOrb) {
-		var pj = new nape_constraint_PivotJoint(coreOrb.get_pBall(),newOrb.get_pBall(),nape_geom_Vec2.get(0,0,true),nape_geom_Vec2.get(0,0,true));
-		pj.set_space(this._space);
-		if(pj.zpp_inner.active != true) {
-			if(pj.zpp_inner.component != null) pj.zpp_inner.component.woken = false;
-			pj.zpp_inner.clearcache();
-			pj.zpp_inner.active = true;
-			pj.zpp_inner.activate();
-			if(pj.zpp_inner.space != null) {
-				if(pj.zpp_inner.component != null) pj.zpp_inner.component.sleeping = true;
-				pj.zpp_inner.space.wake_constraint(pj.zpp_inner,true);
-			}
-		}
-		pj.zpp_inner.active;
-		if(pj.zpp_inner.stiff != false) {
-			pj.zpp_inner.stiff = false;
-			pj.zpp_inner.wake();
-		}
-		pj.zpp_inner.stiff;
-		if(pj.zpp_inner.damping != 5) {
-			pj.zpp_inner.damping = 5;
-			if(!pj.zpp_inner.stiff) pj.zpp_inner.wake();
-		}
-		pj.zpp_inner.damping;
-		if(pj.zpp_inner.breakUnderError != false) {
-			pj.zpp_inner.breakUnderError = false;
-			pj.zpp_inner.wake();
-		}
-		pj.zpp_inner.breakUnderError;
-		if(pj.zpp_inner.breakUnderForce != false) {
-			pj.zpp_inner.breakUnderForce = false;
-			pj.zpp_inner.wake();
-		}
-		pj.zpp_inner.breakUnderForce;
-		if(pj.zpp_inner.frequency != 3) {
-			pj.zpp_inner.frequency = 3;
-			if(!pj.zpp_inner.stiff) pj.zpp_inner.wake();
-		}
-		pj.zpp_inner.frequency;
+		return newOrbs;
 	}
 	,onUpdate: function(elapsedTime) {
 		this.updateComponentAnimations(elapsedTime);
+		this.updateForceOnAllOrbs(elapsedTime);
+		this.drawConnections();
+	}
+	,updateForceOnAllOrbs: function(elapsedTime) {
 		this._space.step(0.0166666666666666664);
 		var _g = 0;
 		var _g1 = this._orbs;
@@ -527,7 +487,6 @@ View.prototype = $extend(PIXI.Container.prototype,{
 			}
 			orb.updatePosition();
 		}
-		this.drawConnections();
 	}
 	,drawConnections: function() {
 		var _g = 0;
@@ -538,14 +497,11 @@ View.prototype = $extend(PIXI.Container.prototype,{
 			this._connectionsContainer.removeChild(child);
 		}
 		var _g2 = 0;
-		var _g11 = this._connections;
+		var _g11 = this._orbs;
 		while(_g2 < _g11.length) {
-			var pairs = _g11[_g2];
+			var orb = _g11[_g2];
 			++_g2;
-			var line = new PIXI.Graphics().lineStyle(1,15967039);
-			line.moveTo(pairs[0].position.x,pairs[0].position.y);
-			line.lineTo(pairs[1].position.x,pairs[1].position.y);
-			this._connectionsContainer.addChild(line);
+			orb.drawConnection(this._connectionsContainer);
 		}
 	}
 	,updateComponentAnimations: function(elapsedTime) {
@@ -612,6 +568,7 @@ components_Orb.__name__ = true;
 components_Orb.__super__ = PIXI.Container;
 components_Orb.prototype = $extend(PIXI.Container.prototype,{
 	assignToPhysicsSpace: function(space) {
+		this._mySpace = space;
 		this.get_pBall().set_space(space);
 	}
 	,setupInteractivity: function() {
@@ -672,7 +629,68 @@ components_Orb.prototype = $extend(PIXI.Container.prototype,{
 	}
 	,onRelatedArtistsResponse: function(artistIds) {
 		this.stopLoadingAnim();
-		this.resquestAdditionalOrbs(artistIds,this);
+		this._myChildOrbs = this.resquestAdditionalOrbs(artistIds,this);
+		this.addPhysicsConnectionToChildOrbs();
+	}
+	,addPhysicsConnectionToChildOrbs: function() {
+		var _g = 0;
+		var _g1 = this._myChildOrbs;
+		while(_g < _g1.length) {
+			var orb = _g1[_g];
+			++_g;
+			var pj = new nape_constraint_PivotJoint(this.get_pBall(),orb.get_pBall(),nape_geom_Vec2.get(0,0,true),nape_geom_Vec2.get(0,0,true));
+			pj.set_space(this._mySpace);
+			if(pj.zpp_inner.active != true) {
+				if(pj.zpp_inner.component != null) pj.zpp_inner.component.woken = false;
+				pj.zpp_inner.clearcache();
+				pj.zpp_inner.active = true;
+				pj.zpp_inner.activate();
+				if(pj.zpp_inner.space != null) {
+					if(pj.zpp_inner.component != null) pj.zpp_inner.component.sleeping = true;
+					pj.zpp_inner.space.wake_constraint(pj.zpp_inner,true);
+				}
+			}
+			pj.zpp_inner.active;
+			if(pj.zpp_inner.stiff != false) {
+				pj.zpp_inner.stiff = false;
+				pj.zpp_inner.wake();
+			}
+			pj.zpp_inner.stiff;
+			if(pj.zpp_inner.damping != 5) {
+				pj.zpp_inner.damping = 5;
+				if(!pj.zpp_inner.stiff) pj.zpp_inner.wake();
+			}
+			pj.zpp_inner.damping;
+			if(pj.zpp_inner.breakUnderError != false) {
+				pj.zpp_inner.breakUnderError = false;
+				pj.zpp_inner.wake();
+			}
+			pj.zpp_inner.breakUnderError;
+			if(pj.zpp_inner.breakUnderForce != false) {
+				pj.zpp_inner.breakUnderForce = false;
+				pj.zpp_inner.wake();
+			}
+			pj.zpp_inner.breakUnderForce;
+			if(pj.zpp_inner.frequency != 3) {
+				pj.zpp_inner.frequency = 3;
+				if(!pj.zpp_inner.stiff) pj.zpp_inner.wake();
+			}
+			pj.zpp_inner.frequency;
+		}
+	}
+	,drawConnection: function(connectionsContainer) {
+		if(this._myChildOrbs != null) {
+			var _g = 0;
+			var _g1 = this._myChildOrbs;
+			while(_g < _g1.length) {
+				var childOrb = _g1[_g];
+				++_g;
+				var line = new PIXI.Graphics().lineStyle(1,15967039);
+				line.moveTo(this.position.x,this.position.y);
+				line.lineTo(childOrb.position.x,childOrb.position.y);
+				connectionsContainer.addChild(line);
+			}
+		}
 	}
 	,forcePosition: function(pos) {
 		this.get_pBall().get_position().set_x(pos.x);
@@ -691,36 +709,34 @@ components_Orb.prototype = $extend(PIXI.Container.prototype,{
 		this.position.y = this.get_pBall().get_position().get_y();
 	}
 	,loadingAnimation: function(time) {
-		var high = .5;
-		var low = high * -1;
-		this.position.x += Math.floor(Math.random() * (1 + high - low)) + low;
-		this.position.y += Math.floor(Math.random() * (1 + high - low)) + low;
 	}
 	,applyMyForceToBody: function(body,elapsedTime) {
-		var closestA = nape_geom_Vec2.get(null,null,null);
-		var closestB = nape_geom_Vec2.get(null,null,null);
-		var distance = nape_geom_Geom.distanceBody(this.get_pBall(),body,closestA,closestB);
-		if(distance < 100) {
-			var force = closestA.sub((function($this) {
-				var $r;
-				if(body.zpp_inner.wrap_pos == null) body.zpp_inner.setupPosition();
-				$r = body.zpp_inner.wrap_pos;
-				return $r;
-			}(this)),true);
-			force.set_length((function($this) {
-				var $r;
-				if(body.zpp_inner.world) throw new js__$Boot_HaxeError("Error: Space::world has no mass");
-				body.zpp_inner.validate_mass();
-				if(body.zpp_inner.massMode == zpp_$nape_util_ZPP_$Flags.id_MassMode_DEFAULT && body.zpp_inner.shapes.head == null) throw new js__$Boot_HaxeError("Error: Given current mass mode, Body::mass only makes sense if it contains shapes");
-				$r = body.zpp_inner.cmass;
-				return $r;
-			}(this)) * 1e6 / (distance * distance));
-			force.muleq(-1);
-			force.muleq(elapsedTime / 10000);
-			body.applyImpulse(force,null,true);
+		if(body != this.get_pBall()) {
+			var closestA = nape_geom_Vec2.get(null,null,null);
+			var closestB = nape_geom_Vec2.get(null,null,null);
+			var distance = nape_geom_Geom.distanceBody(this.get_pBall(),body,closestA,closestB);
+			if(distance < 100) {
+				var force = closestA.sub((function($this) {
+					var $r;
+					if(body.zpp_inner.wrap_pos == null) body.zpp_inner.setupPosition();
+					$r = body.zpp_inner.wrap_pos;
+					return $r;
+				}(this)),true);
+				force.set_length((function($this) {
+					var $r;
+					if(body.zpp_inner.world) throw new js__$Boot_HaxeError("Error: Space::world has no mass");
+					body.zpp_inner.validate_mass();
+					if(body.zpp_inner.massMode == zpp_$nape_util_ZPP_$Flags.id_MassMode_DEFAULT && body.zpp_inner.shapes.head == null) throw new js__$Boot_HaxeError("Error: Given current mass mode, Body::mass only makes sense if it contains shapes");
+					$r = body.zpp_inner.cmass;
+					return $r;
+				}(this)) * 1e6 / (distance * distance));
+				force.muleq(-1);
+				force.muleq(elapsedTime / 10000);
+				body.applyImpulse(force,null,true);
+			}
+			closestA.dispose();
+			closestB.dispose();
 		}
-		closestA.dispose();
-		closestB.dispose();
 	}
 	,get_pBall: function() {
 		return this.pBall;
