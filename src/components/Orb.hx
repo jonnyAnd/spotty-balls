@@ -1,4 +1,5 @@
 package components;
+import components.core.Component;
 import nape.constraint.PivotJoint;
 import nape.geom.Geom;
 import nape.geom.Geom;

@@ -4,7 +4,7 @@ class GlobalSettings {
 	public static inline var ORB_RADIUS:Float = 20;
 	public static inline var MAX_RELATED:Int = 5;
 
-    public static inline var OFFLINE_DEBUG_MODE:Bool = true;
+    public static inline var OFFLINE_DEBUG_MODE:Bool = false;
     public static inline var OFFLINE_DEBUG_IMAGE:String = "./resources/offlineDebugImage.png";
 
 

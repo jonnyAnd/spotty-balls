@@ -179,18 +179,15 @@ pixi_plugins_app_Application.prototype = {
 	,__class__: pixi_plugins_app_Application
 };
 var Main = function() {
-	var _g = this;
 	pixi_plugins_app_Application.call(this);
-	this.backgroundColor = 16777215;
+	this.backgroundColor = 1716992;
 	this.antialias = true;
 	this.onUpdate = $bind(this,this._onUpdate);
 	pixi_plugins_app_Application.prototype.start.call(this);
 	this.stage.interactive = true;
-	haxe_Timer.delay(function() {
-		_g._view = new View(_g.stage);
-		_g._controller = new Controller(_g._view,new Model());
-		_g.addZoomAndScroll();
-	},3000);
+	this._view = new View(this.stage);
+	this._controller = new Controller(this._view,new Model());
+	this.addZoomAndScroll();
 };
 Main.__name__ = true;
 Main.main = function() {
@@ -425,6 +422,7 @@ StringTools.fastCodeAt = function(s,index) {
 var View = function(stage) {
 	PIXI.Container.call(this);
 	stage.addChild(this);
+	this.addChild(new components_ArtistInfo());
 	this.setupPhysics();
 	var startOrb = new components_Orb("25NCgMOtjNshJoOdoxYpea");
 	startOrb.assignToPhysicsSpace(this._space);
@@ -486,25 +484,59 @@ comms_spotify_SpotifyCommsController.prototype = {
 	}
 	,__class__: comms_spotify_SpotifyCommsController
 };
-var components_Component = function() {
+var components_core_Component = function() {
+	this.updateProbability = 100;
 	PIXI.Container.call(this);
 	this.updateFunction = $bind(this,this.updateFunctionStub);
 };
-components_Component.__name__ = true;
-components_Component.__super__ = PIXI.Container;
-components_Component.prototype = $extend(PIXI.Container.prototype,{
+components_core_Component.__name__ = true;
+components_core_Component.__super__ = PIXI.Container;
+components_core_Component.prototype = $extend(PIXI.Container.prototype,{
 	updateComponent: function(elapsedTime) {
 		if(this.shortAnimationUpdate != null) this.shortAnimationUpdate(elapsedTime);
-		this.updateFunction(elapsedTime);
+		if(this.updateRequired()) this.updateFunction(elapsedTime);
+	}
+	,updateRequired: function() {
+		var probability = 100 - this.updateProbability;
+		var rand = Math.floor(Math.random() * (1 + probability - 1)) + 1;
+		return rand == 1;
 	}
 	,updateFunctionStub: function(elapsedTime) {
-		console.log("please set updateFunction:Float->Void");
+		console.log("please set updateFunction = updateFunction:Float->Void");
 	}
-	,__class__: components_Component
+	,__class__: components_core_Component
+});
+var components_core_UIElement = function() {
+	components_core_Component.call(this);
+};
+components_core_UIElement.__name__ = true;
+components_core_UIElement.__super__ = components_core_Component;
+components_core_UIElement.prototype = $extend(components_core_Component.prototype,{
+	__class__: components_core_UIElement
+});
+var components_ArtistInfo = function() {
+	components_core_UIElement.call(this);
+	this.updateFunction = $bind(this,this.update);
+	this.updateProbability = 80;
+	this.create();
+};
+components_ArtistInfo.__name__ = true;
+components_ArtistInfo.__super__ = components_core_UIElement;
+components_ArtistInfo.prototype = $extend(components_core_UIElement.prototype,{
+	create: function() {
+		var t = new PIXI.Graphics();
+		t.beginFill(15856113);
+		t.drawRect(100,0,50,window.innerHeight);
+		this.addChild(t);
+	}
+	,update: function(elapsedTime) {
+		console.log("UPDATE");
+	}
+	,__class__: components_ArtistInfo
 });
 var components_Orb = function(artistId) {
 	var _g = this;
-	components_Component.call(this);
+	components_core_Component.call(this);
 	this.artistId = artistId;
 	this.updateFunction = $bind(this,this.update);
 	this.setupGraphics();
@@ -519,8 +551,8 @@ var components_Orb = function(artistId) {
 	},500);
 };
 components_Orb.__name__ = true;
-components_Orb.__super__ = components_Component;
-components_Orb.prototype = $extend(components_Component.prototype,{
+components_Orb.__super__ = components_core_Component;
+components_Orb.prototype = $extend(components_core_Component.prototype,{
 	assignToPhysicsSpace: function(space) {
 		this._mySpace = space;
 		this._pBall.set_space(space);
@@ -547,7 +579,7 @@ components_Orb.prototype = $extend(components_Component.prototype,{
 		this._spotify = new comms_spotify_SpotifyCommsController();
 	}
 	,getArtistPictureUrl: function() {
-		this.onGetArtistPictureUrl("./resources/offlineDebugImage.png");
+		this._spotify.getArtistPictureUrl(this.artistId,$bind(this,this.onGetArtistPictureUrl));
 	}
 	,onGetArtistPictureUrl: function(url) {
 		this.setImageToSprite(url);
@@ -579,7 +611,7 @@ components_Orb.prototype = $extend(components_Component.prototype,{
 	}
 	,onOrbClick: function(target) {
 		this.startLoadingAnim();
-		this.onRelatedArtistsResponse(settings_GlobalSettings.OFFLINE_DEBUG_RELATED());
+		this._spotify.getRelatedArtists(this.artistId,$bind(this,this.onRelatedArtistsResponse));
 	}
 	,onRelatedArtistsResponse: function(artistIds) {
 		this.stopLoadingAnim();
@@ -57205,7 +57237,7 @@ nape_phys_Interactor.zpp_internalAlloc = false;
 nape_shape_Shape.zpp_internalAlloc = false;
 settings_GlobalSettings.ORB_RADIUS = 20;
 settings_GlobalSettings.MAX_RELATED = 5;
-settings_GlobalSettings.OFFLINE_DEBUG_MODE = true;
+settings_GlobalSettings.OFFLINE_DEBUG_MODE = false;
 settings_GlobalSettings.OFFLINE_DEBUG_IMAGE = "./resources/offlineDebugImage.png";
 zpp_$nape_ZPP_$Const.FMAX = 1e100;
 zpp_$nape_ZPP_$ID._Constraint = 0;

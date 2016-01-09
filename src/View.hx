@@ -1,5 +1,6 @@
 package ;
 
+import components.ArtistInfo;
 import pixi.core.math.Point;
 import nape.space.Space;
 import components.Orb;
@@ -11,6 +12,29 @@ class View extends Container {
 	public function new(stage:Container) {
 		super();
 		stage.addChild(this);
+
+
+        //todo: this function needs looking at, its full of debug stuff, all needs a home
+
+    /* todo: ui stuff
+         - loading screen?
+         - popup?
+         - atrist info pull over
+         - info glass?
+     */
+
+
+        //debug ui stuff
+
+         this.addChild(new ArtistInfo());
+
+
+        ////
+
+
+
+
+
 		setupPhysics();
 
 		//todo: debug code below this point, only for component development.

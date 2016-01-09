@@ -34,14 +34,14 @@ class Main extends Application {
 
     public function new() {
         super();
-        backgroundColor = 0xFFFFFF;
+        backgroundColor = 0x1a3300;
         antialias = true;
         onUpdate = _onUpdate;
         super.start();
         stage.interactive = true;
 
         //DEBUGGING PERFOMANCE, JUST TO GET THE RECORDING GOING
-        Timer.delay(function(){
+        //Timer.delay(function(){
 
 
         _view = new View(stage);
@@ -49,11 +49,7 @@ class Main extends Application {
 
         addZoomAndScroll();
 
-
-
-
-
-        }, 3000);
+       // }, 3000);
     }
 
     function addZoomAndScroll(){
