@@ -4,6 +4,7 @@ class Component extends Container {
 
 	public var shortAnimationUpdate:Float->Void;
 	private var updateFunction:Float->Void;
+    private var onResize:Void->Void;
 
     public var updateProbability:Float = 100;// will update 100% of the time, this should be set in component
 
@@ -13,6 +14,8 @@ class Component extends Container {
 	public function new() {
 		super();
 		updateFunction = updateFunctionStub;
+        onResize = null;
+
 	}
 
 	public function updateComponent(elapsedTime:Float){
@@ -25,6 +28,13 @@ class Component extends Container {
             updateFunction(elapsedTime);
         }
 	}
+
+    public function onResizeComponent(){
+
+        if(onResize != null){
+            onResize();
+        }
+    }
 
     private function updateRequired():Bool{
 

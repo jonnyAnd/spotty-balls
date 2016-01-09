@@ -8,6 +8,7 @@ class ArtistInfo extends UIElement {
         super();
         updateFunction = update;
         updateProbability = 80;
+        onResize = resize;
 
         create();
     }
@@ -22,6 +23,12 @@ class ArtistInfo extends UIElement {
 
 
     }
+
+    private function resize():Void{
+
+    }
+
+
 
     private function update(elapsedTime:Float){
 

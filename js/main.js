@@ -183,6 +183,7 @@ var Main = function() {
 	this.backgroundColor = 1716992;
 	this.antialias = true;
 	this.onUpdate = $bind(this,this._onUpdate);
+	this.onResize = $bind(this,this._onResize);
 	pixi_plugins_app_Application.prototype.start.call(this);
 	this.stage.interactive = true;
 	this._view = new View(this.stage);
@@ -204,6 +205,9 @@ Main.prototype = $extend(pixi_plugins_app_Application.prototype,{
 	}
 	,_onUpdate: function(elapsedTime) {
 		if(this._view != null) this._view.onUpdate(elapsedTime);
+	}
+	,_onResize: function() {
+		if(this._view != null) this._view.onResize();
 	}
 	,__class__: Main
 });
@@ -439,6 +443,16 @@ View.prototype = $extend(PIXI.Container.prototype,{
 		this._space.step(0.0166666666666666664);
 		this.updateComponentAnimations(elapsedTime);
 	}
+	,onResize: function() {
+		var _g = 0;
+		var _g1 = this.children;
+		while(_g < _g1.length) {
+			var child = _g1[_g];
+			++_g;
+			var childObject = child;
+			if(childObject.onResizeComponent != null) childObject.onResizeComponent();
+		}
+	}
 	,updateComponentAnimations: function(elapsedTime) {
 		var _g = 0;
 		var _g1 = this.children;
@@ -488,6 +502,7 @@ var components_core_Component = function() {
 	this.updateProbability = 100;
 	PIXI.Container.call(this);
 	this.updateFunction = $bind(this,this.updateFunctionStub);
+	this.onResize = null;
 };
 components_core_Component.__name__ = true;
 components_core_Component.__super__ = PIXI.Container;
@@ -495,6 +510,9 @@ components_core_Component.prototype = $extend(PIXI.Container.prototype,{
 	updateComponent: function(elapsedTime) {
 		if(this.shortAnimationUpdate != null) this.shortAnimationUpdate(elapsedTime);
 		if(this.updateRequired()) this.updateFunction(elapsedTime);
+	}
+	,onResizeComponent: function() {
+		if(this.onResize != null) this.onResize();
 	}
 	,updateRequired: function() {
 		var probability = 100 - this.updateProbability;
@@ -518,6 +536,7 @@ var components_ArtistInfo = function() {
 	components_core_UIElement.call(this);
 	this.updateFunction = $bind(this,this.update);
 	this.updateProbability = 80;
+	this.onResize = $bind(this,this.resize);
 	this.create();
 };
 components_ArtistInfo.__name__ = true;
@@ -529,6 +548,9 @@ components_ArtistInfo.prototype = $extend(components_core_UIElement.prototype,{
 		t.drawRect(100,0,50,window.innerHeight);
 		this.addChild(t);
 	}
+	,resize: function() {
+		console.log("component resize");
+	}
 	,update: function(elapsedTime) {
 		console.log("UPDATE");
 	}
@@ -539,6 +561,7 @@ var components_Orb = function(artistId) {
 	components_core_Component.call(this);
 	this.artistId = artistId;
 	this.updateFunction = $bind(this,this.update);
+	this.updateProbability = 100;
 	this.setupGraphics();
 	this.setupComms();
 	this.setupInteractivity();

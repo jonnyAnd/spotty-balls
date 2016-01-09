@@ -53,6 +53,15 @@ class View extends Container {
 		updateComponentAnimations(elapsedTime);
 	}
 
+    public function onResize(){
+        for(child in this.children){
+            var childObject:Dynamic = child;
+            if(childObject.onResizeComponent != null){
+                childObject.onResizeComponent();
+            }
+        }
+    }
+
 	private function updateComponentAnimations(elapsedTime:Float){
 		for(child in this.children){
 			var childObject:Dynamic = child;

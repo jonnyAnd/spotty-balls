@@ -34,6 +34,7 @@ class Orb extends Component{
 		this.artistId = artistId;
 
 		updateFunction = update;
+        updateProbability = 100;
 
 		setupGraphics();
 		setupComms();

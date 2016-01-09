@@ -37,6 +37,7 @@ class Main extends Application {
         backgroundColor = 0x1a3300;
         antialias = true;
         onUpdate = _onUpdate;
+        onResize = _onResize;
         super.start();
         stage.interactive = true;
 
@@ -65,6 +66,12 @@ class Main extends Application {
 
         if(_view != null){
             _view.onUpdate(elapsedTime);
+        }
+    }
+
+    function _onResize(){
+        if(_view != null){
+            _view.onResize();
         }
     }
 
