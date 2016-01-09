@@ -179,15 +179,18 @@ pixi_plugins_app_Application.prototype = {
 	,__class__: pixi_plugins_app_Application
 };
 var Main = function() {
+	var _g = this;
 	pixi_plugins_app_Application.call(this);
 	this.backgroundColor = 16777215;
 	this.antialias = true;
 	this.onUpdate = $bind(this,this._onUpdate);
 	pixi_plugins_app_Application.prototype.start.call(this);
 	this.stage.interactive = true;
-	this._view = new View(this.stage);
-	this._controller = new Controller(this._view,new Model());
-	this.addZoomAndScroll();
+	haxe_Timer.delay(function() {
+		_g._view = new View(_g.stage);
+		_g._controller = new Controller(_g._view,new Model());
+		_g.addZoomAndScroll();
+	},3000);
 };
 Main.__name__ = true;
 Main.main = function() {
@@ -544,7 +547,7 @@ components_Orb.prototype = $extend(components_Component.prototype,{
 		this._spotify = new comms_spotify_SpotifyCommsController();
 	}
 	,getArtistPictureUrl: function() {
-		this._spotify.getArtistPictureUrl(this.artistId,$bind(this,this.onGetArtistPictureUrl));
+		this.onGetArtistPictureUrl("./resources/offlineDebugImage.png");
 	}
 	,onGetArtistPictureUrl: function(url) {
 		this.setImageToSprite(url);
@@ -576,7 +579,7 @@ components_Orb.prototype = $extend(components_Component.prototype,{
 	}
 	,onOrbClick: function(target) {
 		this.startLoadingAnim();
-		this._spotify.getRelatedArtists(this.artistId,$bind(this,this.onRelatedArtistsResponse));
+		this.onRelatedArtistsResponse(settings_GlobalSettings.OFFLINE_DEBUG_RELATED());
 	}
 	,onRelatedArtistsResponse: function(artistIds) {
 		this.stopLoadingAnim();
@@ -16918,6 +16921,9 @@ nape_util_Debug.clearObjectPools = function() {
 var settings_GlobalSettings = function() {
 };
 settings_GlobalSettings.__name__ = true;
+settings_GlobalSettings.OFFLINE_DEBUG_RELATED = function() {
+	return ["3LyQ9aDH7Id4t7SqAEaxfn","27JDTiYCwtiLKRWrHMDe3A","3TKwR0c2W9ZLaNdoPGDl33","1a6tqLJPUs4DBAnNUZkr2O","0rFVdej5uMjF7nca0nAjEY"];
+};
 settings_GlobalSettings.prototype = {
 	__class__: settings_GlobalSettings
 };
@@ -57199,6 +57205,8 @@ nape_phys_Interactor.zpp_internalAlloc = false;
 nape_shape_Shape.zpp_internalAlloc = false;
 settings_GlobalSettings.ORB_RADIUS = 20;
 settings_GlobalSettings.MAX_RELATED = 5;
+settings_GlobalSettings.OFFLINE_DEBUG_MODE = true;
+settings_GlobalSettings.OFFLINE_DEBUG_IMAGE = "./resources/offlineDebugImage.png";
 zpp_$nape_ZPP_$Const.FMAX = 1e100;
 zpp_$nape_ZPP_$ID._Constraint = 0;
 zpp_$nape_ZPP_$ID._Interactor = 0;

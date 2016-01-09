@@ -84,7 +84,12 @@ class Orb extends Component{
 	}
 
 	private function getArtistPictureUrl(){
-		_spotify.getArtistPictureUrl(artistId, onGetArtistPictureUrl);
+
+        if(GlobalSettings.OFFLINE_DEBUG_MODE){
+            onGetArtistPictureUrl(GlobalSettings.OFFLINE_DEBUG_IMAGE);
+        }else{
+            _spotify.getArtistPictureUrl(artistId, onGetArtistPictureUrl);
+        }
 	}
 
 	private function onGetArtistPictureUrl(url:String){
@@ -124,17 +129,18 @@ class Orb extends Component{
 
 	private function onOrbClick(target:EventTarget){
 		startLoadingAnim();
-		_spotify.getRelatedArtists(artistId, onRelatedArtistsResponse);
+        if(GlobalSettings.OFFLINE_DEBUG_MODE){
+            onRelatedArtistsResponse(GlobalSettings.OFFLINE_DEBUG_RELATED());
+        }else{
+            _spotify.getRelatedArtists(artistId, onRelatedArtistsResponse);
+        }
 	}
 
 	private function onRelatedArtistsResponse(artistIds:Array<String>){
 		stopLoadingAnim();
-
-
 		addChildOrbs(artistIds);
 		addPhysicsConnectionToChildOrbs();
 	}
-
 
 	private function addChildOrbs(artistIds:Array<String>){
 
@@ -180,10 +186,6 @@ class Orb extends Component{
 		}
 	}
 
-
-
-
-
 	private function clearOldConnection(){
 		if(_myConnectionLines != null){
 			for(line in _myConnectionLines){
@@ -224,10 +226,6 @@ class Orb extends Component{
 		drawConnection();
 
 	}
-
-
-
-
 
 	//Physics functions
 	public function forcePosition(pos:Point){
